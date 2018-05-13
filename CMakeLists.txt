@@ -16,16 +16,6 @@ project(rpiDisplay)
 #set (CMAKE_PREFIX_PATH "/opt/embeddev/0.1.0/sysroots/arm1176jzfshf-vfp-embeddev-linux-gnueabi/usr")
 #set (QT_QMAKE_EXECUTABLE "/opt/embeddev/0.1.0/sysroots/x86_64-pokysdk-linux/usr/bin/qt5/qmake")
 
-# Following is important to make sure OpenEmbedded Qt Toolchain is set
-set (OE_QMAKE_PATH_EXTERNAL_HOST_BINS $ENV{OE_QMAKE_PATH_HOST_BINS} )
-set (QMAKE_CFLAGS_ISYSTEM "-I")
-# Verbose
-set( CMAKE_VERBOSE_MAKEFILE on )
-
-
-# Find the QtWidgets library
-find_package(Qt5Core REQUIRED)
-find_package(Qt5Widgets REQUIRED)
 
 ### CROSS COMPILING for Raspberry Pi
 # Set if you want to cross compile these..
@@ -34,15 +24,21 @@ find_package(Qt5Widgets REQUIRED)
 # If not, you can deploy and remotely build in raspberry pi
 ###
 
+# Following is important to make sure OpenEmbedded Qt Toolchain is set
+set (OE_QMAKE_PATH_EXTERNAL_HOST_BINS $ENV{OE_QMAKE_PATH_HOST_BINS} )
+set (QMAKE_CFLAGS_ISYSTEM "-I")
+
+# Verbose
+set( CMAKE_VERBOSE_MAKEFILE on )
+
 set (CMAKE_C_FLAGS "-fPIC ${CMAKE_C_FLAGS}")
 set (CMAKE_CXX_FLAGS "-std=c++11 -fPIC -Wno-write-strings -Wno-deprecated-declarations -Wno-unused-local-typedefs -O2 -pipe -g -feliminate-unused-debug-types  -fstack-protector-strong -pie -fpie -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -fvisibility-inlines-hidden ${CMAKE_CXX_FLAGS}")
 
 if(DEFINED ENV{SDKTARGETSYSROOT})
     message(STATUS "SDK Detected")
     set(SDK_EN 1)
-
     # Use OpenCV config from Yocto SDK (WA)
-    set(OpenCV_DIR $ENV{SDKTARGETSYSROOT}/usr/share/OpenCV)
+    # set(OpenCV_DIR $ENV{SDKTARGETSYSROOT}/usr/share/OpenCV)
     # Raspicam module
     set(CMAKE_MODULE_PATH $ENV{SDKTARGETSYSROOT}/usr/lib/cmake ${CMAKE_MODULE_PATH})
 
@@ -50,64 +46,70 @@ else(DEFINED ENV{SDKTARGETSYSROOT})
     set(SDK_EN 0)
 endif(DEFINED ENV{SDKTARGETSYSROOT})
 
+# Find the QtWidgets library
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+
 # Find includes in the build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Turn on automatic invocation of the MOC
 set(CMAKE_AUTOMOC ON)
 
-# There may be a way to tell up front if Qt5 is going to be found, but I haven't found
-# a foolproof way to do it yet, so settle for the default error message for now.
-#if(NOT CMAKE_PREFIX_PATH AND NOT Qt5Widgets_DIR)
-#    message(WARNING "CMAKE_PREFIX_PATH is not defined, so find_package may not work. Set the CMAKE_PREFIX_PATH "
-#            "environment variable to the install prefix of Qt 5, either on the command line as "
-#            "-DCMAKE_PREFIX_PATH=\"path/to/Qt5/lib/cmake\" or with set(CMAKE_PREFIX_PATH path/to/Qt5/lib/cmake)")
-#endif(NOT CMAKE_PREFIX_PATH AND NOT Qt5Widgets_DIR)
-
 # Add a compiler flag
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-
-## NON-QT SECTION-----------------
-# Path to external libraries for linking
-#set (wiringPi_includepath "${toolchain_location}/extlibs/wiringPi/wiringPi")
-#set (wiringPi_buildpath "${toolchain_location}/extlibs/wiringPi/wiringPi/build")
-# Point to CMake path script where to find Qt libraries in the target (i.e find scripts)
-#set (Qt5Core_DIR "${toolchain_location}/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/arm-linux-gnueabihf/sysroot/usr/lib/arm-linux-gnueabihf/cmake/Qt5Core/")
-#set (Qt5Widgets_DIR "${toolchain_location}/tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/arm-linux-gnueabihf/sysroot/usr/lib/arm-linux-gnueabihf/cmake/Qt5Widgets/")
-# Include external libraries
-#include_directories (include ${wiringPi_includepath})
-# Actually find the wiringPi library object
-#find_library(WPI_LIB wiringPi HINTS ${wiringPi_buildpath} NO_CMAKE_FIND_ROOT_PATH)
-# Alert the user if we do not find it
-#if(NOT WPI_LIB)
-#  message(FATAL_ERROR “wiringPi library not found”)
-#endif()
-
-## -------------------NON-QT SECTION
 
 # Make this a GUI application on Windows
 if(WIN32)
   set(CMAKE_WIN32_EXECUTABLE ON)
 endif()
 
+## COMMON =====================================================
+set (PROJECT_BUILD_DIR "${PROJECT_SOURCE_DIR}/build")
+include_directories ("${PROJECT_SOURCE_DIR}/common/include")
+
+install(FILES "${PROJECT_SOURCE_DIR}/scripts/start.sh"
+  DESTINATION "/opt/rpiDisplay/")
+
+## FRONTEND ===================================================
 # Generate code from ui files
-qt5_wrap_ui(UI_HEADERS mainwindow.ui)
-
+qt5_wrap_cpp(frontend_app_SRC "${PROJECT_SOURCE_DIR}/frontend/include/mainwindow.h")
+qt5_wrap_ui(frontend_app_UI "${PROJECT_SOURCE_DIR}/frontend/gui/mainwindow.ui")
 # Generate rules for building source files from the resources
-qt5_add_resources(QRCS resources/resources.qrc)
+qt5_add_resources(frontend_app_QRCS "${PROJECT_SOURCE_DIR}/frontend/resources/resources.qrc")
+add_executable(frontend_app "${PROJECT_SOURCE_DIR}/frontend/src/main.cpp"
+                        "${PROJECT_SOURCE_DIR}/frontend/src/mainwindow.cpp"
+                        ${frontend_app_UI}
+                        ${frontend_app_SRC}
+                        ${frontend_app_QRCS})
 
-# Tell CMake to create the helloworld executable
-add_executable(rpiDisplay main.cpp mainwindow.cpp ${UI_HEADERS} ${QRCS})
+qt5_wrap_cpp(backend_recv_SRC "${PROJECT_SOURCE_DIR}/frontend/include/BackendReceiveThread.h")
+add_library (backend_recv SHARED "${PROJECT_SOURCE_DIR}/frontend/src/BackendReceiveThread.cpp" ${backend_recv_SRC})
+target_include_directories (backend_recv PUBLIC "${PROJECT_SOURCE_DIR}/frontend/include")
+set_property(TARGET backend_recv PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
+target_link_libraries(backend_recv Qt5::Widgets)
+target_link_libraries(backend_recv rt)
 
-# Add the Qt5 Widgets for linking
-target_link_libraries(rpiDisplay Qt5::Widgets)
-
+target_include_directories (frontend_app PUBLIC "${PROJECT_SOURCE_DIR}/frontend/include")
+target_link_libraries(frontend_app Qt5::Widgets)
+target_link_libraries(frontend_app backend_recv)
+target_link_libraries(frontend_app wiringPi)
+target_link_libraries(frontend_app rt)
 # The following line is the life-saver to remove system includes (-isystem) that are causing lots of problems..
-set_property(TARGET rpiDisplay PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
+set_property(TARGET frontend_app PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
 
-## NON-QT SECTION-----------------
 
-#Link external libraries
-#target_link_libraries(rpiDisplay ${WPI_LIB})
-target_link_libraries (rpiDisplay wiringPi)
-## -------------------NON-QT SECTION
+## BACKEND ===================================================
+add_library (rtlib SHARED "${PROJECT_SOURCE_DIR}/backend/src/rtlib/rtlib.c")
+target_include_directories (rtlib PUBLIC "${PROJECT_SOURCE_DIR}/backend/include/rtlib")
+target_include_directories (rtlib PUBLIC "${PROJECT_SOURCE_DIR}/backend/include")
+target_link_libraries (rtlib pthread)
+target_link_libraries (rtlib rt)
+
+# Tell CMake to create the executable
+add_executable(backend_app "${PROJECT_SOURCE_DIR}/backend/src/main.cpp")
+target_include_directories (backend_app PUBLIC "${PROJECT_SOURCE_DIR}/backend/include")
+target_link_libraries (backend_app rtlib)
+target_link_libraries (backend_app pthread)
+target_link_libraries (backend_app rt)
+target_link_libraries (backend_app wiringPi)
