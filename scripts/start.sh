@@ -4,7 +4,7 @@
 #   Add to startup: update-rc.d rpiDisplay defaults
 #   Remove from startup: update-rc.d -f rpiDisplay remove
 #
-# The script is present in initscriptrpidisplay recipe in meta-embeddev to automatize the process in Linux.
+# The script is present in initscriptrpidisplay recipe in meta-embeddev (pokyRT) to automatize the process in Linux.
 # But first, deploy the application to /home/root/projects
 
 ## Get which directory we're at

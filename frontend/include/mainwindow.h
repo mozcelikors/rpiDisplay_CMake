@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QModelIndex>
 
 namespace Ui {
 	class MainWindow;
@@ -22,8 +23,7 @@ public:
 
 private:
 	Ui::MainWindow *ui;
-
-
+	int checkIfFolder_treeview (void);
 
 private slots:
 	void timerUpdate (void);

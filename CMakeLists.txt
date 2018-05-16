@@ -74,6 +74,7 @@ install(FILES "${PROJECT_SOURCE_DIR}/scripts/start.sh"
 ## FRONTEND ===================================================
 # Generate code from ui files
 qt5_wrap_cpp(frontend_app_SRC "${PROJECT_SOURCE_DIR}/frontend/include/mainwindow.h")
+qt5_wrap_cpp(CustomLineEdit_SRC "${PROJECT_SOURCE_DIR}/frontend/include/CustomLineEdit.h")
 qt5_wrap_ui(frontend_app_UI "${PROJECT_SOURCE_DIR}/frontend/gui/mainwindow.ui")
 # Generate rules for building source files from the resources
 qt5_add_resources(frontend_app_QRCS "${PROJECT_SOURCE_DIR}/frontend/resources/resources.qrc")
@@ -81,7 +82,9 @@ add_executable(frontend_app "${PROJECT_SOURCE_DIR}/frontend/src/main.cpp"
                         "${PROJECT_SOURCE_DIR}/frontend/src/mainwindow.cpp"
                         ${frontend_app_UI}
                         ${frontend_app_SRC}
-                        ${frontend_app_QRCS})
+                        ${frontend_app_QRCS}
+                        "${PROJECT_SOURCE_DIR}/frontend/src/CustomLineEdit.cpp"
+                        ${CustomLineEdit_SRC})
 
 qt5_wrap_cpp(backend_recv_SRC "${PROJECT_SOURCE_DIR}/frontend/include/BackendReceiveThread.h")
 add_library (backend_recv SHARED "${PROJECT_SOURCE_DIR}/frontend/src/BackendReceiveThread.cpp" ${backend_recv_SRC})

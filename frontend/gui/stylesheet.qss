@@ -16,7 +16,7 @@
         border:0px;
         color: #DDDDDD;
         font-family:"Ubuntu";
-        /*font-size:12px;*/
+        font-size:15px;
         outline: none; /* No focus outline */
 }
 
@@ -193,6 +193,11 @@ QTabWidget::pane { /* The tab widget frame */
     background:#001c42;
 }
 
+QScrollArea
+{
+    background:#001c42;
+}
+
 QTabWidget::tab-bar {
 
 }
@@ -239,21 +244,29 @@ QWidget#tab {
 
 }
 
-QLineEdit
+QLineEdit, QPlainTextEdit, CustomLineEdit
 {
     color:yellow;
     selection-background-color:#FED10A;
     selection-color:black;
 }
 
-QTextEdit, QLineEdit, QTableWidget, QComboBox{
+QTextEdit, QLineEdit, QTableWidget, QComboBox, QPlainTextEdit {
         border-radius:3px;
         background-color:#3a3a3a;
         border: 1px solid #555;
         padding:5px;
 }
 
-QTextEdit::hover, QLineEdit::hover {
+CustomLineEdit {
+    background-color:#666666;
+    color:white;
+    border: 1px solid #AAA;
+    padding:5px;
+    border-radius:3px;
+}
+
+QTextEdit::hover, QLineEdit::hover, QPlainTextEdit::hover {
         background: #333;
         color:yellow;
         padding:5px;
@@ -265,9 +278,15 @@ QTableView QTableCornerButton::section {
 
 
 
-QLineEdit::selected
+QLineEdit::selected, QPlainTextEdit::selected, CustomLineEdit::selected
 {
     color:yellow;
+}
+
+CustomLineEdit::focus {
+        background-color:#999999;
+        color:white;
+        border: 1px solid #AAA;
 }
 
 QPushButton{
@@ -278,16 +297,12 @@ QPushButton{
         padding:5px;
 }
 QPushButton::hover {
-        background-color:#FED10A;
-        color:black;
-        border: 1px solid #FED10A;
+        background-color:#005d77;
         padding:5px;
 }
 
 QPushButton::focus {
-        background-color:#FED10A;
-        color:black;
-        border: 1px solid #FED10A;
+        background-color:#005d77;
         padding:5px;
 }
 
@@ -317,7 +332,7 @@ QComboBox::down-arrow {
         border: 1px solid #5A5A5A;
 }
 
-QLineEdit:disabled {
+QLineEdit:disabled, QPlainTextEdit:disabled, CustomLineEdit:disabled {
         background-color:#222;
         color:yellow;
 }
@@ -405,5 +420,13 @@ QGroupBox::title
 {
     color:#3D7848;
 }
+
+QTreeView, QTreeWidget
+{
+    font-size: 13px;
+    color:white;
+    background: #333;
+}
+
 
 
