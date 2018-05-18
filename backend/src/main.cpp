@@ -84,8 +84,8 @@ void button0InterruptCallback (void)
 	// Trigger a thread as an example. No huge code in ISR!
 	static unsigned long last_interrupt_time = 0;
 	unsigned long interrupt_time = millis();
-	// If interrupts come faster than 150ms, assume it's a bounce and ignore
-	if (interrupt_time - last_interrupt_time > 150)
+	// If interrupts come faster than 200, assume it's a bounce and ignore
+	if (interrupt_time - last_interrupt_time > 200)
 	{
 		if (digitalRead(BUTTON_0_PIN) == LOW)
 			sem_post(&button0_semaphore);
@@ -98,8 +98,8 @@ void button1InterruptCallback (void)
 	// Trigger a thread as an example. No huge code in ISR!
 	static unsigned long last_interrupt_time = 0;
 	unsigned long interrupt_time = millis();
-	// If interrupts come faster than 150ms, assume it's a bounce and ignore
-	if (interrupt_time - last_interrupt_time > 150)
+	// If interrupts come faster than 200, assume it's a bounce and ignore
+	if (interrupt_time - last_interrupt_time > 200)
 	{
 		if (digitalRead(BUTTON_1_PIN) == LOW)
 			sem_post(&button1_semaphore);
@@ -112,8 +112,8 @@ void button2InterruptCallback (void)
 	// Trigger a thread as an example. No huge code in ISR!
 	static unsigned long last_interrupt_time = 0;
 	unsigned long interrupt_time = millis();
-	// If interrupts come faster than 150ms, assume it's a bounce and ignore
-	if (interrupt_time - last_interrupt_time > 150)
+	// If interrupts come faster than 200, assume it's a bounce and ignore
+	if (interrupt_time - last_interrupt_time > 200)
 	{
 		if (digitalRead(BUTTON_2_PIN) == LOW)
 			sem_post(&button2_semaphore);
@@ -126,8 +126,8 @@ void button3InterruptCallback (void)
 	// Trigger a thread as an example. No huge code in ISR!
 	static unsigned long last_interrupt_time = 0;
 	unsigned long interrupt_time = millis();
-	// If interrupts come faster than 150ms, assume it's a bounce and ignore
-	if (interrupt_time - last_interrupt_time > 150)
+	// If interrupts come faster than 200, assume it's a bounce and ignore
+	if (interrupt_time - last_interrupt_time > 200)
 	{
 		if (digitalRead(BUTTON_3_PIN) == LOW)
 			sem_post(&button3_semaphore);
@@ -140,8 +140,8 @@ void button4InterruptCallback (void)
 	// Trigger a thread as an example. No huge code in ISR!
 	static unsigned long last_interrupt_time = 0;
 	unsigned long interrupt_time = millis();
-	// If interrupts come faster than 150ms, assume it's a bounce and ignore
-	if (interrupt_time - last_interrupt_time > 150)
+	// If interrupts come faster than 200, assume it's a bounce and ignore
+	if (interrupt_time - last_interrupt_time > 200)
 	{
 		if (digitalRead(BUTTON_4_PIN) == LOW)
 			sem_post(&button4_semaphore);
@@ -302,7 +302,7 @@ static void *buttonInterruptThread(void *args)
 			fflush(stdout);
 		}
 
-		delay_sec_msec (0, 150);
+		delay_sec_msec (0, 50);
 	}
 	mq_close(mq);
 	return NULL;
