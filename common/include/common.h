@@ -22,8 +22,9 @@
 #define BUTTON_3_PIN 21 //BCM5
 #define BUTTON_4_PIN 22 //BCM6
 
-// MESSAGE QUEUES =======================================================================
+// BUTTON, MESSAGE QUEUES =======================================================================
 
+#define BUTTON_DEBOUNCE_PERIOD 170 //millisecond
 #define BUTTON_INTERRUPT_QUEUE_NAME  "/gpio_intr"
 #define BUTTON_INTERRUPT_MAX_SIZE    1024
 #define BUTTON_INTERRUPT_MSG_STOP    "exit"

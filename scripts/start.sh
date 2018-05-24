@@ -7,6 +7,16 @@
 # The script is present in initscriptrpidisplay recipe in meta-embeddev (pokyRT) to automatize the process in Linux.
 # But first, deploy the application to /home/root/projects
 
+# Some useful commands:
+#
+#export QT_QPA_PLATFORM=linuxfb:fb=/dev/fb1
+#export QT_QPA_PLATFORM_PLUGIN_PATH=/usr/lib/plugins/platforms
+#LD_LIBRARY_PATH=projects/ ./projects/backend_app -tr
+#LD_LIBRARY_PATH=projects/ ./projects/frontend_app
+#// To run an app in the running DISPLAY (Xorg) (HDMI-connected),
+#LD_LIBRARY_PATH=. DISPLAY=":0" ./frontend_app
+
+
 ## Get which directory we're at
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink

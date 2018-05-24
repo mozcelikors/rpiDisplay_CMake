@@ -21,6 +21,9 @@ int main(int argc, char *argv[])
 {
 	QApplication a(argc, argv);
 
+	/* Hide cursor */
+	QApplication::setOverrideCursor(Qt::BlankCursor);
+
 	QPixmap pixmap(":/gui/splash.png");
 	QSplashScreen splash(pixmap);
 	splash.show();

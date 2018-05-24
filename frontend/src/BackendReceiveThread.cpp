@@ -59,7 +59,7 @@ void BackendReceiveThread::run()
 		}
 
 		fflush(stdout);
-		usleep(100 * 1e3); //100ms
+		usleep(20 * 1e3); //20ms
 	}
 
 	/* cleanup */
