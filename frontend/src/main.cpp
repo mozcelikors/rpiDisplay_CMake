@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 	/* Load Ubuntu font */
 	QFontDatabase::addApplicationFont(":/gui/Ubuntu-R.ttf");
 
-	usleep (3 * 1e6);
+	usleep (2 * 1e6);
 
 	w.show();
 	splash.finish(&w);
