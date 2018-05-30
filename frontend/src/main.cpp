@@ -15,7 +15,12 @@
 
 #include "common.h"
 
+#include "camera_interface.h"
+
 int gpio_interrupt = BUTTON_IDLE_MSG;
+
+CameraStreamInterface csi;
+
 
 int main(int argc, char *argv[])
 {

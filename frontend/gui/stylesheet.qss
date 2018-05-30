@@ -72,6 +72,7 @@ QGroupBox::title {
 QScrollBar {
         border: 1px solid #5A5A5A;
         background: #191919;
+
 }
 
 QScrollBar:horizontal {
@@ -213,7 +214,7 @@ QTabBar {
 QTabBar::tab {
         margin-top:2px;
         padding:5px;
-        padding-top:25px;
+        padding-top:5px;
         padding-bottom:12px;
         margin-left:5px;
         background:#88c9cc;

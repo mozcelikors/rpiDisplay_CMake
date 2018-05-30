@@ -20,7 +20,7 @@ public:
 	void downFocus (void);
 	void upFocus (void);
 	void splashScreen (void);
-
+	void drawMenubarIcons (void);
 private:
 	Ui::MainWindow *ui;
 	int checkIfFolder_treeview (void);
@@ -32,6 +32,7 @@ private slots:
 	void okayOperation (void);
 	void cancelOperation (void);
 	void rebootSystem (void);
+	void timerCameraShow (void);
 };
 
 #endif // MAINWINDOW_H

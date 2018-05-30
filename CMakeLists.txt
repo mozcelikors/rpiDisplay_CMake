@@ -49,6 +49,8 @@ endif(DEFINED ENV{SDKTARGETSYSROOT})
 # Find the QtWidgets library
 find_package(Qt5Core REQUIRED)
 find_package(Qt5Widgets REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(raspicam REQUIRED)
 
 # Find includes in the build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -93,11 +95,29 @@ set_property(TARGET backend_recv PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
 target_link_libraries(backend_recv Qt5::Widgets)
 target_link_libraries(backend_recv rt)
 
+qt5_wrap_cpp(camera_SRC "${PROJECT_SOURCE_DIR}/frontend/include/CameraThread.h")
+add_library (camera SHARED "${PROJECT_SOURCE_DIR}/frontend/src/CameraThread.cpp" ${camera_SRC})
+target_include_directories (camera PUBLIC "${PROJECT_SOURCE_DIR}/frontend/include")
+set_property(TARGET camera PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
+target_link_libraries(camera Qt5::Widgets)
+target_link_libraries(camera raspicam)
+target_link_libraries(camera raspicam_cv)
+target_link_libraries(camera opencv_core)
+target_link_libraries(camera opencv_highgui)
+target_link_libraries(camera opencv_imgproc)
+target_link_libraries(camera opencv_imgcodecs)
+# Needed for camera component to work:
+target_link_libraries(camera mmal)
+target_link_libraries(camera mmal_core)
+target_link_libraries(camera mmal_util)
+target_link_libraries(camera pthread)
+
 target_include_directories (frontend_app PUBLIC "${PROJECT_SOURCE_DIR}/frontend/include")
 target_link_libraries(frontend_app Qt5::Widgets)
 target_link_libraries(frontend_app backend_recv)
 target_link_libraries(frontend_app wiringPi)
-target_link_libraries(frontend_app rt)
+target_link_libraries(frontend_app pthread)
+target_link_libraries(frontend_app camera)
 # The following line is the life-saver to remove system includes (-isystem) that are causing lots of problems..
 set_property(TARGET frontend_app PROPERTY NO_SYSTEM_FROM_IMPORTED ON)
 

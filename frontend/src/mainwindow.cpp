@@ -5,6 +5,8 @@
 //
 // To run an app in the running DISPLAY (Xorg),
 // LD_LIBRARY_PATH=. DISPLAY=":0" ./frontend_app
+//
+// Change device IP from Tools, also from Projects>Run>[remote commands]
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -16,16 +18,26 @@
 #include <QFocusEvent>
 #include <QSplashScreen>
 #include <QDirModel>
+#include <QGraphicsPixmapItem>
 
 #include <unistd.h>
 #include "BackendReceiveThread.h"
+#include "CameraThread.h"
 #include "main.h"
+
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core.hpp>
+
+#include "camera_interface.h"
+
+#include <semaphore.h>
 
 #include "common.h"
 
-#define TABWIDGET_HOMEPAGE_IDX 2
-#define TABWIDGET_CLOUDPAGE_IDX 1
-#define TABWIDGET_SETTINGSPAGE_IDX 0
+#define TABWIDGET_CAMERAPAGE_IDX 2
+#define TABWIDGET_USBPAGE_IDX 1
+#define TABWIDGET_MENUPAGE_IDX 0
 
 #define APP_WIDTH 320
 #define APP_HEIGHT 240
@@ -49,30 +61,70 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->graphicsView_netz->setVisible(true);
 
 	/* Menu graphics */
-	ui->graphicsView->setGeometry(134, 10, 40, 40);
-	ui->graphicsView->setStyleSheet("background-image: url(:/gui/home.png)");
+	ui->graphicsView->setGeometry(137, 19, 39, 36);
+	ui->graphicsView->setStyleSheet("background-image: url(:/gui/camera.png)");
 
-	ui->graphicsView_2->setGeometry(198, 10, 40, 40);
-	ui->graphicsView_2->setStyleSheet("background-image: url(:/gui/cloud.png)");
+	ui->graphicsView_2->setGeometry(198, 22, 40, 32);
+	ui->graphicsView_2->setStyleSheet("background-image: url(:/gui/usb.png)");
 
-	ui->graphicsView_3->setGeometry(261, 8, 40, 40);
-	ui->graphicsView_3->setStyleSheet("background-image: url(:/gui/settings.png)");
+	ui->graphicsView_3->setGeometry(261, 19, 42, 38);
+	ui->graphicsView_3->setStyleSheet("background-image: url(:/gui/menu.png)");
 
-	connect(ui->pushButton_shutdown, SIGNAL(clicked()), this, SLOT(shutdownSystem()));
-	connect(ui->pushButton_reboot, SIGNAL(clicked()), this, SLOT(rebootSystem()));
+	/* Menu bar icons */
+	this->drawMenubarIcons();
 
+	/* Camera visualsinitializations */
+	ui->graphicsView_cameramenu->setStyleSheet("background-image: url(:/gui/testimage.jpg)");
+
+	ui->label_pressOK3_2->setStyleSheet("color:white;");
+	ui->label_pressOK3->setStyleSheet("color:white;");
+
+	ui->graphicsView_camera->setGeometry(0, 0, 320, 240);
+	ui->graphicsView_camera->setVisible(false);
+
+
+
+	/* Initialize camera interface */
+#ifdef CAMERA_DISPLAY_METHOD_1
+	csi.camera_scene = new QGraphicsScene();
+	csi.camera_active_f = 0;
+	csi.camera_image = cv::Mat::zeros(cv::Size(320, 240), CV_8UC3);
+#endif
+	/* Camera thread */
+	int sem_rc = -1;
+	sem_rc = sem_init(&csi.camera_sem, 0, 1);
+	CHECK (sem_rc == 0);
+
+	CameraThread *camera_thread = new CameraThread();
+	camera_thread->start();
+	camera_thread->setPriority(QThread::HighPriority);
+
+
+
+	QTimer *timer_camerashow = new QTimer(this);
+	connect(timer_camerashow, SIGNAL(timeout()), this, SLOT(timerCameraShow()));
+	timer_camerashow->start(30); /* ~30fps */
+
+
+	/* Backend communication thread */
 	BackendReceiveThread *backendrecv_thread = new BackendReceiveThread();
 	backendrecv_thread->start();
+	backendrecv_thread->setPriority(QThread::HighPriority);
 
 	QTimer *timer = new QTimer(this);
 	connect(timer, SIGNAL(timeout()), this, SLOT(timerUpdate()));
 	timer->start(200);
 
+	/* Unblank screen periodically */
 	this->screenUnblank();
 
 	QTimer *timer2 = new QTimer(this);
 	connect(timer2, SIGNAL(timeout()), this, SLOT(screenUnblank()));
 	timer2->start(5000);
+
+	/* Shut down and reboot hooks */
+	connect(ui->pushButton_shutdown, SIGNAL(clicked()), this, SLOT(shutdownSystem()));
+	connect(ui->pushButton_reboot, SIGNAL(clicked()), this, SLOT(rebootSystem()));
 
 	/* Be sure to use layout and add the following. Important when using scrollArea */
 	ui->scrollAreaWidgetContents_homepage->setLayout(ui->verticalLayout);
@@ -81,6 +133,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	//ui->horizontalLayout_2->addWidget(cle_homepage);
 	//cle_homepage->setText("asd");
 
+	/* USB menu tree view initialize */
 	QDirModel *dir_model = new QDirModel();
 	dir_model->setSorting(QDir::DirsFirst |
 						  QDir::IgnoreCase |
@@ -95,8 +148,70 @@ MainWindow::MainWindow(QWidget *parent) :
 
 }
 
+static QImage Mat2QImage(cv::Mat const& src)
+{
+	 cv::Mat temp; // make the same cv::Mat
+	 cvtColor(src, temp,CV_BGR2RGB); // cvtColor Makes a copt, that what i need
+	 QImage dest((const uchar *) temp.data, temp.cols, temp.rows, temp.step, QImage::Format_RGB888);
+	 dest.bits(); // enforce deep copy, see documentation
+	 // of QImage::QImage ( const uchar * data, int width, int height, Format format )
+	 return dest;
+}
+
+static cv::Mat QImage2Mat(QImage const& src)
+{
+	 cv::Mat tmp(src.height(),src.width(),CV_8UC3,(uchar*)src.bits(),src.bytesPerLine());
+	 cv::Mat result; // deep copy just in case (my lack of knowledge with open cv)
+	 cvtColor(tmp, result,CV_BGR2RGB);
+	 return result;
+}
+
+void MainWindow::timerCameraShow (void)
+{
+	if (csi.camera_active_f == 1)
+	{
+		//qDebug() << "TimerCameraShow";
+#ifdef CAMERA_DISPLAY_METHOD_1
+		sem_wait(&csi.camera_sem);
+		QImage img = Mat2QImage(csi.camera_image);
+		sem_post(&csi.camera_sem);
+
+		QPixmap m_pixmap = QPixmap::fromImage(img);
+
+		csi.camera_scene->addPixmap(m_pixmap);
+		csi.camera_scene->setSceneRect(0,0,m_pixmap.width(), m_pixmap.height());
+
+		ui->graphicsView_camera->setScene(csi.camera_scene);
+		ui->graphicsView_camera->repaint();
+#else
+#ifdef CAMERA_DISPLAY_METHOD_2
+		sem_wait(&csi.camera_sem);
+		ui->graphicsView_camera->setStyleSheet("background-image: url(/home/root/projects/camera/embeddev_cv_image.jpg)");
+		sem_post(&csi.camera_sem);
+		ui->graphicsView_camera->repaint();
+#endif
+#endif
+	}
+}
+
+void MainWindow::drawMenubarIcons (void)
+{
+	int positions_x[2] = {281, 251};
+	int positions_y[2] = {0,   0};
+	int widths[2] =      {30, 30};
+	int heights[2] =     {20, 20};
+	ui->graphicsView_battery->setGeometry(positions_x[0], positions_y[0], widths[0], heights[0]);
+	ui->graphicsView_battery->setStyleSheet("background-image: url(:/gui/level3.png)");
+
+	ui->graphicsView_connection->setGeometry(positions_x[1], positions_y[1], widths[1], heights[1]);
+	ui->graphicsView_connection->setStyleSheet("background-image: url(:/gui/levelcharging.png)");
+	ui->graphicsView_connection->setVisible(false);
+}
+
 void MainWindow::shutdownSystem (void)
 {
+	ui->graphicsView_connection->setVisible(false);
+	ui->graphicsView_battery->setVisible(false);
 	this->splashScreen();
 	system("halt");
 }
@@ -125,7 +240,7 @@ void MainWindow::downFocus (void)
 	QPoint globalPos =fw->mapToGlobal(fw->rect().topLeft());
 	this->focusNextPrevChild(true);
 
-	if (ui->tabWidget->currentIndex() == TABWIDGET_HOMEPAGE_IDX)
+	if (ui->tabWidget->currentIndex() == TABWIDGET_MENUPAGE_IDX)
 	{
 		// we added a spacer label at the bottom and scrolling 80px downward to make last button visible.
 		//ui->scrollArea_homepage->ensureWidgetVisible(fw);
@@ -135,7 +250,7 @@ void MainWindow::downFocus (void)
 		else if (globalPos.y() >= APP_HEIGHT/2)
 			ui->scrollArea_homepage->ensureVisible(0, (globalPos.y()<=APP_HEIGHT)?(globalPos.y()+80):APP_HEIGHT, 0, 0);
 	}
-	else if (ui->tabWidget->currentIndex() == TABWIDGET_SETTINGSPAGE_IDX)
+	else if (ui->tabWidget->currentIndex() == TABWIDGET_USBPAGE_IDX)
 	{
 		QModelIndex index_it = ui->treeView->indexBelow(ui->treeView->currentIndex());
 		if (index_it.isValid())
@@ -149,7 +264,6 @@ void MainWindow::downFocus (void)
 		//QVariant data = ui->treeView->model()->data(index);
 		//qDebug() << "currIndex:" << data.toString();
 	}
-
 }
 
 void MainWindow::upFocus (void)
@@ -160,11 +274,11 @@ void MainWindow::upFocus (void)
 	QPoint globalPos =fw->mapToGlobal(fw->rect().topLeft());
 	this->focusNextPrevChild(false);
 
-	if (ui->tabWidget->currentIndex() == TABWIDGET_HOMEPAGE_IDX)
+	if (ui->tabWidget->currentIndex() == TABWIDGET_MENUPAGE_IDX)
 	{
 		ui->scrollArea_homepage->ensureWidgetVisible(fw);
 	}
-	else if (ui->tabWidget->currentIndex() == TABWIDGET_SETTINGSPAGE_IDX)
+	else if (ui->tabWidget->currentIndex() == TABWIDGET_USBPAGE_IDX)
 	{
 
 		QModelIndex index_it = ui->treeView->indexAbove(ui->treeView->currentIndex());
@@ -180,20 +294,21 @@ void MainWindow::upFocus (void)
 		//qDebug() << "currIndex:" << data.toString();
 
 	}
-
-
 }
 
 void MainWindow::switchTab (void)
 {
-	if (ui->tabWidget->currentIndex() == TABWIDGET_HOMEPAGE_IDX)
-		ui->tabWidget->setCurrentIndex(TABWIDGET_CLOUDPAGE_IDX);
-	else if (ui->tabWidget->currentIndex() == TABWIDGET_CLOUDPAGE_IDX)
+	if (csi.camera_active_f != 1)
 	{
-		ui->tabWidget->setCurrentIndex(TABWIDGET_SETTINGSPAGE_IDX);
+		if (ui->tabWidget->currentIndex() == TABWIDGET_CAMERAPAGE_IDX)
+			ui->tabWidget->setCurrentIndex(TABWIDGET_USBPAGE_IDX);
+		else if (ui->tabWidget->currentIndex() == TABWIDGET_USBPAGE_IDX)
+		{
+			ui->tabWidget->setCurrentIndex(TABWIDGET_MENUPAGE_IDX);
+		}
+		else if (ui->tabWidget->currentIndex() == TABWIDGET_MENUPAGE_IDX)
+			ui->tabWidget->setCurrentIndex(TABWIDGET_CAMERAPAGE_IDX);
 	}
-	else if (ui->tabWidget->currentIndex() == TABWIDGET_SETTINGSPAGE_IDX)
-		ui->tabWidget->setCurrentIndex(TABWIDGET_HOMEPAGE_IDX);
 }
 
 void MainWindow::screenUnblank(void)
@@ -223,7 +338,7 @@ int MainWindow::checkIfFolder_treeview (void)
 
 void MainWindow::okayOperation (void)
 {
-	if (ui->tabWidget->currentIndex() == TABWIDGET_HOMEPAGE_IDX)
+	if (ui->tabWidget->currentIndex() == TABWIDGET_MENUPAGE_IDX)
 	{
 		/* Animate pressing a button */
 		QWidget * fw = qApp->focusWidget(); // get Focused widget
@@ -235,7 +350,7 @@ void MainWindow::okayOperation (void)
 			pb->animateClick();
 		}
 	}
-	else if (ui->tabWidget->currentIndex() == TABWIDGET_SETTINGSPAGE_IDX)
+	else if (ui->tabWidget->currentIndex() == TABWIDGET_USBPAGE_IDX)
 	{
 		/* Check if highlighted item is a folder by checking type name*/
 		if (this->checkIfFolder_treeview() == 0)
@@ -263,11 +378,30 @@ void MainWindow::okayOperation (void)
 
 
 	}
+	else if (ui->tabWidget->currentIndex() == TABWIDGET_CAMERAPAGE_IDX)
+	{
+		if (csi.camera_active_f != 1)
+		{
+			csi.camera_active_f = 1;
+			ui->label_pressOK3_2->setVisible(false);
+			ui->label_pressOK3->setVisible(false);
+			ui->graphicsView_camera->setVisible(true);
+		}
+	}
 }
 
 void MainWindow::cancelOperation (void)
 {
-
+	if (ui->tabWidget->currentIndex() == TABWIDGET_CAMERAPAGE_IDX)
+	{
+		if (csi.camera_active_f == 1)
+		{
+			csi.camera_active_f = 0;
+			ui->label_pressOK3_2->setVisible(true);
+			ui->label_pressOK3->setVisible(true);
+			ui->graphicsView_camera->setVisible(false);
+		}
+	}
 }
 
 void MainWindow::timerUpdate(void)

@@ -24,4 +24,31 @@
      <qresource>
         <file>../gui/splash.png</file>
      </qresource>
+     <qresource>
+        <file>../gui/menu.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/usb.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/camera.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/level0.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/level1.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/level2.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/level3.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/levelcharging.png</file>
+     </qresource>
+     <qresource>
+        <file>../gui/testimage.jpg</file>
+     </qresource>
 </RCC>
