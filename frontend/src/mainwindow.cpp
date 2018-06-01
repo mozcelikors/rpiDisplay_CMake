@@ -4,7 +4,14 @@
 // Provided that linuxfb plugin for Qt5 is installed.
 //
 // To run an app in the running DISPLAY (Xorg),
-// LD_LIBRARY_PATH=. DISPLAY=":0" ./frontend_app
+// LD_LIBRARY_PATH=/home/root/projects DISPLAY=":0" /home/root/projects/frontend_app
+//
+//
+// To debug a deployed app:
+// export QT_QPA_PLATFORM=linuxfb:fb=/dev/fb1
+// killall frontend_app
+// LD_LIBRARY_PATH=/home/root/projects /home/root/projects/backend_app &
+// LD_LIBRARY_PATH=/home/root/projects /home/root/projects/frontend_app
 //
 // Change device IP from Tools, also from Projects>Run>[remote commands]
 
@@ -39,8 +46,6 @@
 #define TABWIDGET_USBPAGE_IDX 1
 #define TABWIDGET_MENUPAGE_IDX 0
 
-#define APP_WIDTH 320
-#define APP_HEIGHT 240
 
 MainWindow::MainWindow(QWidget *parent) :
 	QMainWindow(parent),
@@ -53,7 +58,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	/* Fullscreen, Set fixed size for main window */
 	QMainWindow::showFullScreen();
-	this->setFixedSize(QSize(320, 240));
+	this->setFixedSize(QSize(APP_WIDTH, APP_HEIGHT));
 
 	/* Netz Image */
 	ui->graphicsView_netz->setGeometry(10, 10, 99,34);
@@ -79,7 +84,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->label_pressOK3_2->setStyleSheet("color:white;");
 	ui->label_pressOK3->setStyleSheet("color:white;");
 
-	ui->graphicsView_camera->setGeometry(0, 0, 320, 240);
+	ui->graphicsView_camera->setGeometry(0, 0, APP_WIDTH, APP_HEIGHT);
 	ui->graphicsView_camera->setVisible(false);
 
 
@@ -88,7 +93,7 @@ MainWindow::MainWindow(QWidget *parent) :
 #ifdef CAMERA_DISPLAY_METHOD_1
 	csi.camera_scene = new QGraphicsScene();
 	csi.camera_active_f = 0;
-	csi.camera_image = cv::Mat::zeros(cv::Size(320, 240), CV_8UC3);
+	csi.camera_image = cv::Mat::zeros(cv::Size(APP_WIDTH, APP_HEIGHT), CV_8UC3);
 #endif
 	/* Camera thread */
 	int sem_rc = -1;
@@ -97,7 +102,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	CameraThread *camera_thread = new CameraThread();
 	camera_thread->start();
-	camera_thread->setPriority(QThread::HighPriority);
+	//camera_thread->setPriority(QThread::HighPriority);
 
 
 
@@ -109,7 +114,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	/* Backend communication thread */
 	BackendReceiveThread *backendrecv_thread = new BackendReceiveThread();
 	backendrecv_thread->start();
-	backendrecv_thread->setPriority(QThread::HighPriority);
+	backendrecv_thread->setPriority(QThread::HighestPriority);
 
 	QTimer *timer = new QTimer(this);
 	connect(timer, SIGNAL(timeout()), this, SLOT(timerUpdate()));
@@ -133,6 +138,17 @@ MainWindow::MainWindow(QWidget *parent) :
 	//ui->horizontalLayout_2->addWidget(cle_homepage);
 	//cle_homepage->setText("asd");
 
+	/* USB detect */
+	QTimer *timer_usbdetect = new QTimer(this);
+	connect(timer_usbdetect, SIGNAL(timeout()), this, SLOT(timerUsbDetect()));
+	timer_usbdetect->start(1000);
+
+	/* USB menu tree view page */
+	this->usb_mounted_f = 0;
+	ui->label_noUSBDev->setStyleSheet("color:gray;");
+	ui->label_noUSBDev->setVisible(true);
+	ui->treeView->setVisible(false);
+
 	/* USB menu tree view initialize */
 	QDirModel *dir_model = new QDirModel();
 	dir_model->setSorting(QDir::DirsFirst |
@@ -144,7 +160,7 @@ MainWindow::MainWindow(QWidget *parent) :
 	ui->treeView->setRootIndex(treeView_index);
 	ui->treeView->header()->resizeSection(0,170);
 	ui->treeView->header()->resizeSection(1,30);
-	ui->treeView->header()->resizeSection(2,50);
+	ui->treeView->header()->resizeSection(2,70);
 
 }
 
@@ -164,6 +180,47 @@ static cv::Mat QImage2Mat(QImage const& src)
 	 cv::Mat result; // deep copy just in case (my lack of knowledge with open cv)
 	 cvtColor(tmp, result,CV_BGR2RGB);
 	 return result;
+}
+
+void MainWindow::timerUsbDetect (void)
+{
+	/* Automount should be enabled by installing udev-extraconf to the Linux image */
+	/* sda */
+	FILE *f_a = popen("mount | grep /dev/sda1", "r");
+	if (NULL != f_a)
+	{
+		if (EOF == fgetc(f_a))
+		{
+			/* Not mounted */
+			ui->label_noUSBDev->setVisible(true);
+			ui->treeView->setVisible(false);
+			this->usb_mounted_f = 0;
+		}
+		else
+		{
+			if (this->usb_mounted_f == 0)
+			{
+				/* Mounted */
+				ui->label_noUSBDev->setVisible(false);
+				ui->treeView->setVisible(true);
+				/* USB menu tree view initialize */
+				QDirModel *dir_model = new QDirModel();
+				dir_model->setSorting(QDir::DirsFirst |
+									  QDir::IgnoreCase |
+									  QDir::Name);
+
+				ui->treeView->setModel(dir_model);
+				QModelIndex treeView_index = dir_model->index("/run/media/sda1");
+				ui->treeView->setRootIndex(treeView_index);
+				ui->treeView->header()->resizeSection(0,170);
+				ui->treeView->header()->resizeSection(1,30);
+				ui->treeView->header()->resizeSection(2,70);
+				this->usb_mounted_f = 1;
+			}
+		}
+
+		pclose(f_a);
+	}
 }
 
 void MainWindow::timerCameraShow (void)

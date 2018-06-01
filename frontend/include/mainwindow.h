@@ -24,6 +24,7 @@ public:
 private:
 	Ui::MainWindow *ui;
 	int checkIfFolder_treeview (void);
+	int usb_mounted_f ;
 
 private slots:
 	void timerUpdate (void);
@@ -33,6 +34,7 @@ private slots:
 	void cancelOperation (void);
 	void rebootSystem (void);
 	void timerCameraShow (void);
+	void timerUsbDetect (void);
 };
 
 #endif // MAINWINDOW_H

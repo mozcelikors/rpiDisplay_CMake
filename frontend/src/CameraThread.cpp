@@ -25,8 +25,8 @@ void CameraThread::run()
 	raspicam::RaspiCam_Cv Camera;
 
 	/* 240x320 since we'll rotate, 320x240 if we didn't rotate */
-	Camera.set(CV_CAP_PROP_FRAME_WIDTH, 240);
-	Camera.set(CV_CAP_PROP_FRAME_HEIGHT,320);
+	Camera.set(CV_CAP_PROP_FRAME_WIDTH, APP_HEIGHT);
+	Camera.set(CV_CAP_PROP_FRAME_HEIGHT,APP_WIDTH);
 	Camera.set(CAP_PROP_BRIGHTNESS, 70);
 	Camera.set(CAP_PROP_CONTRAST, 70);
 
